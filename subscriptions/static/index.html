@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="utf-8">
+    <title>Мои подписки</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #222;
+            background: #fafafa;
+        }
+
+        h1 {
+            margin-bottom: .25rem;
+        }
+
+        h2 {
+            margin-top: 2rem;
+            font-size: 1.1rem;
+            color: #444;
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            flex-wrap: wrap;
+            margin-bottom: 1rem;
+        }
+
+        select,
+        input,
+        button {
+            font: inherit;
+            padding: .4rem .6rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background: #fff;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #f0f0f0;
+        }
+
+        button.primary {
+            background: #2563eb;
+            color: #fff;
+            border-color: #2563eb;
+        }
+
+        button.primary:hover {
+            background: #1d4ed8;
+        }
+
+        .total {
+            font-weight: 600;
+            color: #2563eb;
+            margin-left: .5rem;
+        }
+
+        .sub {
+            border: 1px solid #e5e5e5;
+            background: #fff;
+            padding: .75rem 1rem;
+            margin: .5rem 0;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: .4rem;
+        }
+
+        .sub .row1 {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: .5rem;
+        }
+
+        .sub .name {
+            font-weight: 600;
+        }
+
+        .sub .price {
+            color: #333;
+        }
+
+        .sub .date {
+            font-size: .85rem;
+            color: #777;
+        }
+
+        .sub .actions {
+            display: flex;
+            gap: .4rem;
+            flex-wrap: wrap;
+        }
+
+        .sub .actions button {
+            font-size: .85rem;
+            padding: .25rem .5rem;
+        }
+
+        .status {
+            display: inline-block;
+            padding: .1rem .5rem;
+            border-radius: 999px;
+            font-size: .75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+
+        .status-active {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-paused {
+            background: #fef9c3;
+            color: #854d0e;
+        }
+
+        .status-cancelled {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .status-expired {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .empty {
+            padding: 1rem;
+            color: #777;
+            font-style: italic;
+            background: #fff;
+            border: 1px dashed #ddd;
+            border-radius: 8px;
+        }
+
+        .error {
+            color: #991b1b;
+            background: #fee2e2;
+            border: 1px solid #fecaca;
+            padding: .5rem .75rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .form-row {
+            display: flex;
+            gap: .5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: .5rem;
+        }
+
+        .hint {
+            font-size: .85rem;
+            color: #777;
+            margin-top: .25rem;
+        }
+
+        footer {
+            margin-top: 3rem;
+            font-size: .8rem;
+            color: #999;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Мои подписки</h1>
+
+    <div class="topbar">
+        <label>Пользователь:</label>
+        <select id="user">
+            <option value="1">Аня</option>
+            <option value="2">Борис</option>
+        </select>
+        <span id="total" class="total"></span>
+    </div>
+
+    <div id="error" class="error"></div>
+
+    <h2>Активные и не только</h2>
+    <div id="list"></div>
+
+    <h2>Добавить подписку</h2>
+    <form id="create-form" class="form-row">
+        <input id="service-name" type="text" placeholder="Название (например, Netflix)" required>
+        <input id="service-price" type="number" step="0.01" min="0" placeholder="Цена, ₽/мес" required>
+        <label style="display:flex;align-items:center;gap:.3rem">
+            Начало:
+            <input id="started-at" type="date">
+        </label>
+        <label style="display:flex;align-items:center;gap:.3rem">
+            Следующее списание:
+            <input id="next-payment-at" type="date">
+        </label>
+        <button class="primary" type="submit">Подписаться</button>
+    </form>
+    <p class="hint">
+        Если даты не указаны — подписка начнётся сегодня, следующее списание через месяц.
+    </p>
+    <p class="hint">
+        Или выберите из каталога: <span id="catalog"></span>
+    </p>
+
+    <h2>Скоро спишется (7 дней)</h2>
+    <div id="upcoming"></div>
+
+    <footer>
+        Subscriptions API · <a href="/health">/health</a> · <a href="http://localhost:8081" target="_blank">Adminer</a>
+    </footer>
+
+    <script>
+        const API = '';
+        const errEl = document.getElementById('error');
+        const listEl = document.getElementById('list');
+        const upEl = document.getElementById('upcoming');
+        const userEl = document.getElementById('user');
+        const totEl = document.getElementById('total');
+
+        function showError(msg) {
+            errEl.textContent = msg;
+            errEl.classList.add('show');
+            setTimeout(() => errEl.classList.remove('show'), 4000);
+        }
+
+        async function api(path, opts = {}) {
+            const res = await fetch(API + path, {
+                headers: { 'Content-Type': 'application/json' },
+                ...opts,
+            });
+            if (res.status === 204) return null;
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+            return data;
+        }
+
+        function fmtDate(iso) {
+            const d = new Date(iso);
+            return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function renderSubs(subs) {
+            listEl.innerHTML = '';
+            if (!subs.length) {
+                listEl.innerHTML = '<div class="empty">Пока нет подписок — добавьте первую ниже.</div>';
+                return;
+            }
+            for (const s of subs) {
+                const div = document.createElement('div');
+                div.className = 'sub';
+                div.innerHTML = `
+      <div class="row1">
+        <span class="name">${escapeHtml(s.service_name)}</span>
+        <span class="status status-${s.status}">${s.status}</span>
+      </div>
+      <div class="price">${s.price.toFixed(2)} ₽ / мес</div>
+      <div class="date">начало: ${fmtDate(s.started_at)} · следующее списание: ${fmtDate(s.next_payment_at)}</div>
+      <div class="actions">
+        <button data-action="pause"  data-id="${s.id}">Пауза</button>
+        <button data-action="resume" data-id="${s.id}">Возобновить</button>
+        <button data-action="cancel" data-id="${s.id}">Отменить</button>
+        <button data-action="delete" data-id="${s.id}">Удалить</button>
+      </div>
+    `;
+                div.querySelectorAll('button').forEach(btn => {
+                    btn.onclick = () => handleAction(btn.dataset.action, btn.dataset.id);
+                });
+                listEl.appendChild(div);
+            }
+        }
+
+        function renderUpcoming(subs) {
+            upEl.innerHTML = '';
+            if (!subs.length) {
+                upEl.innerHTML = '<div class="empty">Ничего не спишется в ближайшие 7 дней.</div>';
+                return;
+            }
+            for (const s of subs) {
+                const div = document.createElement('div');
+                div.className = 'sub';
+                div.innerHTML = `
+      <div class="row1">
+        <span class="name">${escapeHtml(s.service_name)}</span>
+        <span class="price">${s.price.toFixed(2)} ₽</span>
+      </div>
+      <div class="date">${fmtDate(s.next_payment_at)}</div>
+    `;
+                upEl.appendChild(div);
+            }
+        }
+
+        async function handleAction(action, id) {
+            try {
+                if (action === 'delete') {
+                    await api('/subscriptions/' + id, { method: 'DELETE' });
+                } else {
+                    const status = { pause: 'paused', resume: 'active', cancel: 'cancelled' }[action];
+                    await api('/subscriptions/' + id, {
+                        method: 'PATCH',
+                        body: JSON.stringify({ status }),
+                    });
+                }
+                load();
+            } catch (e) {
+                showError(e.message);
+            }
+        }
+
+        async function loadServices() {
+            try {
+                const services = await api('/services');
+                const catalogEl = document.getElementById('catalog');
+                catalogEl.innerHTML = '';
+                services.forEach((s, i) => {
+                    if (i > 0) catalogEl.appendChild(document.createTextNode(', '));
+                    const a = document.createElement('a');
+                    a.href = '#';
+                    a.textContent = `${s.name} (${s.monthly_price.toFixed(2)} ₽)`;
+                    a.onclick = (e) => {
+                        e.preventDefault();
+                        document.getElementById('service-name').value = s.name;
+                        document.getElementById('service-price').value = s.monthly_price;
+                    };
+                    catalogEl.appendChild(a);
+                });
+            } catch (e) {
+                console.error('Не удалось загрузить каталог:', e.message);
+            }
+        }
+
+        async function load() {
+            errEl.classList.remove('show');
+            const uid = userEl.value;
+            try {
+                const [subs, upcoming, total] = await Promise.all([
+                    api(`/users/${uid}/subscriptions`),
+                    api(`/users/${uid}/upcoming`),
+                    api(`/users/${uid}/monthly-total`),
+                ]);
+                renderSubs(subs);
+                renderUpcoming(upcoming);
+                totEl.textContent = `— в месяц: ${total.total.toFixed(2)} ₽`;
+            } catch (e) {
+                showError(e.message);
+            }
+        }
+
+        document.getElementById('create-form').onsubmit = async (ev) => {
+            ev.preventDefault();
+
+            const name = document.getElementById('service-name').value.trim();
+            const price = Number(document.getElementById('service-price').value);
+            const startedAtVal = document.getElementById('started-at').value;
+            const nextPaymentVal = document.getElementById('next-payment-at').value;
+
+            if (!name) {
+                showError('Введите название сервиса');
+                return;
+            }
+            if (!(price >= 0)) {
+                showError('Введите цену (число больше или равно 0)');
+                return;
+            }
+
+            const payload = { service_name: name, price };
+
+            // <input type="date"> отдаёт "YYYY-MM-DD" → превращаем в RFC3339
+            if (startedAtVal) {
+                payload.started_at = new Date(startedAtVal + 'T00:00:00').toISOString();
+            }
+            if (nextPaymentVal) {
+                payload.next_payment_at = new Date(nextPaymentVal + 'T00:00:00').toISOString();
+            }
+
+            try {
+                await api(`/users/${userEl.value}/subscriptions`, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+                document.getElementById('service-name').value = '';
+                document.getElementById('service-price').value = '';
+                document.getElementById('started-at').value = '';
+                document.getElementById('next-payment-at').value = '';
+                load();
+            } catch (e) {
+                showError(e.message);
+            }
+        };
+
+        userEl.onchange = () => {
+            load();
+            loadServices();
+        };
+
+        // старт
+        loadServices().then(load);
+    </script>
+</body>
